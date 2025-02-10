@@ -15,9 +15,12 @@ const __dirname = path.dirname(__filename);
 const PORT = process.env.PORT || 3000;
 
 app.use(cors({
-   origin: "https://ecom-frontend-three-kappa.vercel.app",
-   methods: ['GET', 'POST', 'PUT', "DELETE"],
-   credentials: true
+  origin: [
+    "https://ecom-frontend-three-kappa.vercel.app",
+    "https://ecom-admin-seven-gamma.vercel.app"
+  ],
+  methods: ['GET', 'POST', 'PUT', 'DELETE'],
+  credentials: true
 }));
 
 // app.use(cors({
