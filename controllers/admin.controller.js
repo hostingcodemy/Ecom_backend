@@ -4,6 +4,7 @@ import moment from "moment-timezone";
 import { ObjectId } from 'mongodb';
 import sharp from 'sharp';
 import fs from 'fs';
+import { log } from 'console';
 
 const BASE_URL = "http://127.0.0.1:3000/uploads";
 
@@ -96,7 +97,7 @@ export const addCategory = async (req, res) => {
          belongs_under,
          belongs_to,
          is_active
-     } = req.body;
+      } = req.body;
       const counter = await db.collection('counters').findOne({ _id: "category_id" });
       let nextCategoryId;
 
@@ -137,13 +138,13 @@ export const addCategory = async (req, res) => {
 
       // saving the photo paths in M_image_reference collection with category id
       if (req.file) {
-         const filePath = req.file.path;
-         const tempFilePath = `${filePath}-temp.jpg`;
-         await sharp(filePath).resize(600, 400).toFile(tempFilePath); // sharping the photo to 400*600
-         fs.renameSync(tempFilePath, filePath);
+         // const filePath = req.file.path;
+         // const tempFilePath = `${filePath}-temp.jpg`;
+         // await sharp(filePath).resize(600, 400).toFile(tempFilePath); // sharping the photo to 400*600
+         // fs.renameSync(tempFilePath, filePath);
          const photoReference = {
             category_id: nextCategoryId,
-            photo_path: req.file ? `${BASE_URL}/${req.file.filename}` : null,
+            photo_path: req.file ? req.file.filename : null,
             created_at: new Date().toLocaleString(),
             updated_at: new Date().toLocaleString()
          };
@@ -185,7 +186,7 @@ export const addSubCategory = async (req, res) => {
          belongs_under,
          belongs_to,
          is_active
-     } = req.body;
+      } = req.body;
       const counter = await db.collection('counters').findOne({ _id: "sub_category_id" });
       let nextSubCategoryId;
 
@@ -226,13 +227,13 @@ export const addSubCategory = async (req, res) => {
       const categoryResult = await db.collection('M_sub_category').insertOne(newSubCategory);
       // saving the photo paths in M_image_reference collection with category id
       if (req.file) {
-         const filePath = req.file.path;
-         const tempFilePath = `${filePath}-temp.jpg`;
-         await sharp(filePath).resize(600, 400).toFile(tempFilePath); // sharping the photo to 400*600
-         fs.renameSync(tempFilePath, filePath);
+         // const filePath = req.file.path;
+         // const tempFilePath = `${filePath}-temp.jpg`;
+         // await sharp(filePath).resize(600, 400).toFile(tempFilePath); // sharping the photo to 400*600
+         // fs.renameSync(tempFilePath, filePath);
          const photoReference = {
             sub_category_id: nextSubCategoryId,
-            photo_path: req.file ? `${BASE_URL}/${req.file.filename}` : null,
+            photo_path: req.file ? req.file.filename : null,
             created_at: new Date().toLocaleString(),
             updated_at: new Date().toLocaleString()
          };
@@ -261,12 +262,13 @@ export const addSubCategory = async (req, res) => {
 // ====================add new item handler====================================
 export const addItem = async (req, res) => {
    try {
-      const { description, id, details, rating, rp, wsp, cbu, cud } = req.body;
+      const { item_name, id, details, rating, rp, wsp, cbu, cud } = req.body;
+   console.log(req.body,'pp')
 
       // field chack
-      if (!description || !id || !details || !rating || !rp || !wsp || !cbu || !cud) {
-         return res.status(400).json({ status: false, error: 'All fields are required except photo.' });
-      }
+      // if (!item_name || !id || !details || !rating || !rp || !wsp || !cbu || !cud) {
+      //    return res.status(400).json({ status: false, error: 'All fields are required except photo.' });
+      // }
 
       // rating can not be negative or above 5
       if (rating < 0 || rating > 5) {
@@ -284,18 +286,18 @@ export const addItem = async (req, res) => {
       const itemCount = await db.collection('M_item').countDocuments();
       const newItem = {
          item_cd: itemCount + 1,
-         description,
+         item_name,
          id,
          details,
-         rating: parseFloat(rating),
-         rp: parseFloat(rp),
-         wsp: parseFloat(wsp),
+         rating,
+         rp,
+         wsp,
          cbu,
          cud,
          ulm: new Date().toLocaleString(),
          dlm: new Date().toLocaleString(),
-         created_at: new Date().toLocaleString(),
-         updated_at: new Date().toLocaleString(),
+         //created_at: new Date().toLocaleString(),
+         //updated_at: new Date().toLocaleString(),
       };
 
       const result = await db.collection('M_item').insertOne(newItem);
@@ -303,19 +305,19 @@ export const addItem = async (req, res) => {
       // mapping the image files into an array
       const filePaths = await Promise.all(
          req.files.map(async (file) => {
-           const filePath = file.path;
-           const tempFilePath = `${filePath}-temp.jpg`;
-     
-           await sharp(filePath)
-             .resize(600, 400)
-             .toFile(tempFilePath); // Resize the photo to 600x400
-     
-           fs.renameSync(tempFilePath, filePath);
-     
-         //   return file.filename; // Return the processed file path
-           return `${BASE_URL}/${file.filename}`; // Return the processed file path
+            //   const filePath = file.path;
+            //   const tempFilePath = `${filePath}-temp.jpg`;
+
+            //   await sharp(filePath)
+            //     .resize(600, 400)
+            //     .toFile(tempFilePath); // Resize the photo to 600x400
+
+            //   fs.renameSync(tempFilePath, filePath);
+
+            //   return file.filename; // Return the processed file path
+            return file.filename; // Return the processed file path
          })
-       );
+      );
 
       // saving the filepaths into M_image_reference collection with item_cd
       if (filePaths.length != 0) {
@@ -403,16 +405,16 @@ export const addCompany = async (req, res) => {
       const result = await db.collection('M_channel').insertOne(newCompany);
 
       // saving the photo paths with company_id
-         const filePath = req.files['picture'][0].path;
-         const tempFilePath = `${filePath}-temp.jpg`;
-         await sharp(filePath).resize(600, 400).toFile(tempFilePath); // sharping the photo to 400*600
-         fs.renameSync(tempFilePath, filePath);
+      // const filePath = req.files['picture'][0].path;
+      // const tempFilePath = `${filePath}-temp.jpg`;
+      // await sharp(filePath).resize(600, 400).toFile(tempFilePath); // sharping the photo to 400*600
+      // fs.renameSync(tempFilePath, filePath);
 
       const photoReference = {
          company_id: companyCount + 1,
          photo_paths: {
-            logo: `${BASE_URL}/${req.files['logo'][0].filename}`,
-            picture: `${BASE_URL}/${req.files['picture'][0].filename}`
+            logo: req.files['logo'][0].filename,
+            picture: req.files['picture'][0].filename
          },
          created_at: new Date().toLocaleString(),
          updated_at: new Date().toLocaleString(),
@@ -435,8 +437,8 @@ export const addCompany = async (req, res) => {
 // ====================royalty handler====================================
 export const royalty = async (req, res) => {
    try {
-      const {sales_amount,royalty_point,royalty_amount,exchange_rate}=req.body;
-      if(!sales_amount||!royalty_point||!royalty_amount||!exchange_rate){
+      const { sales_amount, royalty_point, royalty_amount, exchange_rate } = req.body;
+      if (!sales_amount || !royalty_point || !royalty_amount || !exchange_rate) {
          return res.status(400).json({ status: false, error: 'All fields are required' });
       }
       const counter = await db.collection('counters').findOne({ _id: "royalty_id" });
@@ -461,8 +463,8 @@ export const royalty = async (req, res) => {
          royalty_id: nextRoyaltyId,
          sales_amount: sales_amount,
          royalty_point: royalty_point,
-         royalty_amount:royalty_amount,
-         exchange_rate:exchange_rate,
+         royalty_amount: royalty_amount,
+         exchange_rate: exchange_rate,
          created_by: "ADMIN",
          created_at: new Date().toLocaleString(),
          ulm: new Date().toLocaleString(),
@@ -571,10 +573,10 @@ export const allCustomers = async (req, res) => {
 }
 
 
-export const CustomerOrders=async (req, res) => {
+export const CustomerOrders = async (req, res) => {
    try {
-      const{id}=req.params;
-      const findCustomerOrders = await db.collection("M_order_details").find({customerId:id}).toArray();
+      const { id } = req.params;
+      const findCustomerOrders = await db.collection("M_order_details").find({ customerId: id }).toArray();
       if (findCustomerOrders.length == 0) {
          return res.status(200).json({
             status: true,

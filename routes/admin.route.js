@@ -7,7 +7,7 @@ const adminRouter = express.Router();
 
 adminRouter.post("/admin-register", adminRegister);
 adminRouter.post("/authenticate", authenticator);
-adminRouter.post("/add-category", upload.single('photo_path'), addCategory);
+adminRouter.post("/add-category", upload.single('photo'), addCategory);
 adminRouter.post("/add-sub-category", upload.single('photo'), addSubCategory);
 adminRouter.post("/add-item", upload.array('photo', 4), addItem);
 adminRouter.post("/add-company", upload.fields([

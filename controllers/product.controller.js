@@ -14,7 +14,7 @@ export const findCategories = async (req, res) => {
             const image = await db.collection("M_image_reference").findOne({ category_id: item.category_id });
             return {
                ...item,
-               image
+               image: `${BASE_URL}/${image?.photo_path}`
             };
          })
       );
@@ -57,45 +57,104 @@ export const findSubCategories = async (req, res) => {
          });
       }
 
-      const categories = await collection.aggregate([
+
+// =====================find sub category with items======================================
+      const subcategories = await db.collection("M_sub_category").aggregate([
          {
-            $match: { belongs_to: String(categoryId) }
+            $match: { belongs_to: String(categoryId) }  // Filter subcategories by categoryId
          },
          {
             $lookup: {
-               from: 'M_item',
-               let: { category_id: { $toString: "$category_id" } },
+               from: "M_image_reference",  // Get subcategory images
+               localField: "sub_category_id",
+               foreignField: "sub_category_id",
+               as: "subcategory_images"
+            }
+         },
+         {
+            $lookup: {
+               from: "M_item",
+               let: { subCategoryId: "$sub_category_id" },  // Passing sub_category_id to the lookup pipeline
                pipeline: [
                   {
+                     $addFields: {
+                        idAsNumber: { $toDouble: "$id" }  // Convert id to a number
+                     }
+                  },
+                  {
                      $match: {
-                        $expr: {
-                           $eq: ["$id", "$$category_id"]
-                        }
+                        $expr: { $eq: ["$idAsNumber", "$$subCategoryId"] }  // Compare converted id with sub_category_id
                      }
                   }
                ],
-               as: 'items'
+               as: "items"
+            }
+         },
+         {
+            $lookup: {
+               from: "M_image_reference",
+               let: { itemCodes: "$items.item_cd" },
+               pipeline: [
+                  {
+                     $match: {
+                        $expr: { $in: ["$item_cd", "$$itemCodes"] }
+                     }
+                  },
+                  {
+                     $unwind: "$photo_paths"  // Unwind the photo_path array to process each image individually
+                  }
+               ],
+               as: "item_images"
             }
          },
          {
             $project: {
                "_id": 1,
-               "category_id": 1,
-               "description": 1,
+               "sub_category_id": 1,
+               "sub_category_name": 1,
+               "sub_category_short_code": 1,
+               "serial_number": 1,
+               "group_name": 1,
+               "sub_group_name": 1,
+               "opening_quantity": 1,
+               "opening_value": 1,
+               "belongs_under": 1,
                "belongs_to": 1,
                "is_active": 1,
+               // Subcategory photo
+               "subcategory_photo": {
+                  $cond: {
+                     if: { $gt: [{ $size: "$subcategory_images" }, 0] },
+                     then: { $concat: [BASE_URL, "/", { $arrayElemAt: ["$subcategory_images.photo_path", 0] }] },
+                     else: null
+                  }
+               },
+               // Items and their images
                "items": {
                   $map: {
                      input: "$items",
                      as: "item",
                      in: {
-                        item_cd: "$$item.item_cd",
-                        id: "$$item.id",
-                        name: "$$item.description",
-                        rating: "$$item.rating",
-                        rp_price: "$$item.rp",
-                        wsp_price: "$$item.wsp",
-                        photo: { $concat: [BASE_URL, "/", "$$item.photo"] }
+                        "item_cd": "$$item.item_cd",
+                        "item_name": "$$item.item_name",
+                        "item_id": "$$item.id",
+                        "details": "$$item.details",
+                        "rating": "$$item.rating",
+                        "rp": "$$item.rp",
+                        "wsp": "$$item.wsp",
+                        "item_images": {
+                           $map: {
+                              input: {
+                                 $filter: {
+                                    input: "$item_images",
+                                    as: "img",
+                                    cond: { $eq: ["$$img.item_cd", "$$item.item_cd"] }  // Ensure matching item_cd
+                                 }
+                              },
+                              as: "img",
+                              in: { $concat: [BASE_URL, "/", "$$img.photo_paths"] }  // Since photo_path is unwound, no array here
+                           }
+                        }
                      }
                   }
                }
@@ -103,11 +162,16 @@ export const findSubCategories = async (req, res) => {
          }
       ]).toArray();
 
+
+
+
+
+
       res.status(200).json({
          status: true,
          category_id: categoryId,
          description: parentCategory.description,
-         data: categories
+         data: subcategories
       });
    } catch (error) {
       console.error('Error fetching categories and items:', error);
