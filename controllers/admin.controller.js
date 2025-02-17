@@ -170,9 +170,7 @@ export const addCategory = async (req, res) => {
    }
 };
 
-
 // ====================add new sub category handler====================================
-
 export const addSubCategory = async (req, res) => {
    try {
       const {
@@ -651,3 +649,63 @@ export const findCustomerAgainstUser = async (req, res) => {
       })
    }
 }
+
+
+//=======================Add banding===================
+export const addBanding = async (req, res) => {
+   try {
+      const {
+         banding_name,
+         banding_short_code,
+         sub_category_id,
+         is_active
+      } = req.body;
+      
+      const counter = await db.collection('counters').findOne({ _id: "banding_id" });
+      let nextBandingId;
+     
+      if (counter) {
+         nextBandingId = counter.sequence_value + 1;
+         await db.collection('counters').updateOne(
+            { _id: "banding_id" },
+            { $set: { sequence_value: nextBandingId } }
+         );
+      } else {
+         nextBandingId = 1;
+         await db.collection('counters').insertOne({
+            _id: "banding_id",
+            sequence_value: nextBandingId
+         });
+      }
+
+      // creating a new banding
+      const newBanding = {
+         banding_id: nextBandingId,
+         banding_name: banding_name || "",
+         banding_short_code: banding_short_code || "",
+         sub_category_id: sub_category_id ,
+         is_active: is_active || 1,
+         cbu: "admin",
+         cud: "admin",
+         ulm: new Date().toLocaleString(),
+         dlm: new Date().toLocaleString(),
+      };
+      const bandingResult = await db.collection('M_banding').insertOne(newBanding);
+
+      // sending the response to the frontend
+      res.status(200).json({
+         status: true,
+         message: "Banding added successfully",
+         data: {
+            ...newBanding,
+            _id: bandingResult.insertedId
+         }
+      });
+   } catch (error) {
+      console.error("Error inserting category or photo:", error);
+      res.status(500).json({
+         status: false,
+         error: "Failed to insert category or photo"
+      });
+   }
+};

@@ -3,16 +3,15 @@ import db from "../config/db.js";
 // ===================================================tax entry=============================================
 export const taxHandler = async (req, res) => {
     try {
-        const { tax_id, description, rate, rate1, type, accd, sub_accd, fnc_year, entry_date, lm_date, short_name, exempted, per_amount_type, from_amount_per, to_amount_per, p_tax_id, remarks, created_by, restricted_from_value, restricted_to_value, enc_type, card_no } = req.body;
+        const { tax_name, rate, type, accd, sub_accd, entry_date, lm_date, s_code, exempted, per_amount, from_amount_per, to_amount_per, p_tax_id, remarks, created_by, restricted_from_value, restricted_to_value, enc_type, card_no } = req.body;
 
-        if (!tax_id || !description || !rate || !rate1 || !type || !accd || !sub_accd || !fnc_year || !entry_date || !lm_date || !short_name || !exempted || !per_amount_type || !from_amount_per || !to_amount_per || !p_tax_id || !remarks || !created_by || !restricted_from_value || !restricted_to_value || !enc_type || !card_no) {
-            return res.status(400).json({ status: false, error: 'All fields are required' });
-        }
+        // if (!tax_name|| !rate || !rate1 || !type || !accd || !sub_accd || !fnc_year || !entry_date || !lm_date || !short_name || !exempted || !per_amount_type || !from_amount_per || !to_amount_per || !p_tax_id || !remarks || !created_by || !restricted_from_value || !restricted_to_value || !enc_type || !card_no) {
+        //     return res.status(400).json({ status: false, error: 'All fields are required' });
+        // }
 
         const counter = await db.collection('counters').findOne({ _id: "tax_counter_id" });
         let nextTaxCounterId;
 
-        // setting the royalty id as next sequence value else created one 
         if (counter) {
             nextTaxCounterId = counter.sequence_value + 1;
             await db.collection('counters').updateOne(
@@ -27,40 +26,48 @@ export const taxHandler = async (req, res) => {
             });
         }
 
+        function getCurrentFinancialYear() {
+            const today = new Date();
+            const year = today.getFullYear();
+            const month = today.getMonth() + 1;
+
+            return month >= 4 ? `${year}-${year + 1}` : `${year - 1}-${year}`;
+        }
+
         const tax_details = {
             tax_row_id: nextTaxCounterId,
-            tax_id: tax_id,
-            description: description,
-            rate: rate,
-            rate1: rate1,
-            type: type,
-            accd: accd,
-            sub_accd: sub_accd,
-            fnc_year: fnc_year,
-            entry_date: entry_date,
-            lm_date: lm_date,
-            short_name: short_name,
-            exempted: exempted,
-            per_amount_type: per_amount_type,
-            from_amount_per: from_amount_per,
-            to_amount_per: to_amount_per,
-            p_tax_id: p_tax_id,
-            remarks: remarks,
-            restricted_from_value: restricted_from_value,
-            restricted_to_value: restricted_to_value,
-            created_by: created_by,
-            enc_type: enc_type,
-            card_no: card_no,
+            tax_id: nextTaxCounterId,
+            tax_name: tax_name || "",
+            rate: rate || "",
+            rate1: rate || "",
+            type: type || "",
+            accd: accd || "",
+            sub_accd: sub_accd || "",
+            fnc_year: getCurrentFinancialYear() || "",
+            entry_date: entry_date || "",
+            lm_date: lm_date || "",
+            s_code: s_code || "",
+            exempted: exempted || "",
+            per_amount: per_amount || "",
+            from_amount_per: from_amount_per || "",
+            to_amount_per: to_amount_per || "",
+            p_tax_id: p_tax_id || "",
+            remarks: remarks || "",
+            restricted_from_value: restricted_from_value || "",
+            restricted_to_value: restricted_to_value || "",
+            created_by: created_by || "",
+            enc_type: enc_type || "",
+            card_no: card_no || "",
             created_at: new Date().toLocaleString(),
             ulm: new Date().toLocaleString(),
             dlm: new Date().toLocaleString(),
             is_active: 1,
-            active: 1,
         }
         const result = await db.collection("M_tax").insertOne(tax_details);
         res.status(200).json({
             status: true,
-            message: result
+            message: "Tax created successfully.",
+            result: result,
         })
 
     } catch (error) {
@@ -71,7 +78,6 @@ export const taxHandler = async (req, res) => {
         });
     }
 }
-
 
 // ===================================================tax item wise entry=============================================
 export const taxItemwise = async (req, res) => {
@@ -138,60 +144,48 @@ export const taxItemwise = async (req, res) => {
     }
 }
 
-
 // ===================================================tax location wise entry=============================================
 export const taxLocationWise = async (req, res) => {
     try {
-        const { loc_tax_id, itemcd, loc_id, tax_id, billwise, itemwise, onper, country_code } = req.body;
+        const { item_cd, tax_id } = req.body;
 
-        if (!loc_tax_id || !itemcd || !loc_id || !tax_id || !billwise || !itemwise || !onper || !country_code) {
-            return res.status(400).json({ status: false, error: 'All fields are required' });
+        if (!Array.isArray(item_cd) || !Array.isArray(tax_id) || item_cd.length === 0 || tax_id.length === 0) {
+            return res.status(400).json({ status: false, error: 'item_cd and tax_id must be non-empty arrays' });
         }
 
+        let taxDetailsArray = [];
         const counter = await db.collection('counters').findOne({ _id: "tax_location_counter_id" });
-        let nextTaxLocationwiseCounterId;
-
-        // setting the id as next sequence value else created one 
-        if (counter) {
-            nextTaxLocationwiseCounterId = counter.sequence_value + 1;
-            await db.collection('counters').updateOne(
-                { _id: "tax_location_counter_id" },
-                { $set: { sequence_value: nextTaxLocationwiseCounterId } }
-            );
-        } else {
-            nextTaxLocationwiseCounterId = 1;
-            await db.collection('counters').insertOne({
-                _id: "tax_location_counter_id",
-                sequence_value: nextTaxLocationwiseCounterId
+        let nextLocTaxId = counter ? counter.sequence_value + 1 : 1;
+      
+        item_cd.forEach((item) => {
+            tax_id.forEach((tax) => {
+                taxDetailsArray.push({
+                    loc_tax_id: nextLocTaxId++,
+                    item_cd: item,
+                    loc_code: "100",
+                    tax_id: tax,
+                    bill_item_wise: "B",
+                    onper: "100",
+                    country_code: "IND",
+                    is_active: 1,
+                    ulm: new Date().toLocaleString(),
+                    dlm: new Date().toLocaleString(),
+                });
             });
-        }
+        });
+      
+        const result = await db.collection("M_tax_locationwise").insertMany(taxDetailsArray);
+      
+        await db.collection('counters').updateOne(
+            { _id: "tax_location_counter_id" },
+            { $set: { sequence_value: nextLocTaxId - 1 } },
+            { upsert: true }
+        );
 
-        const tax_details = {
-            row_id: nextTaxLocationwiseCounterId,
-            loc_tax_id: loc_tax_id,
-            itemcd: itemcd,
-            loc_id: loc_id,
-            tax_id: tax_id,
-            billwise: billwise,
-            itemwise: itemwise,
-            onper: onper,
-            country_code: country_code,
-            created_at: new Date().toLocaleString(),
-            created_at1: new Date().toLocaleString(),
-            ulm: new Date().toLocaleString(),
-            ulm1: new Date().toLocaleString(),
-            dlm: new Date().toLocaleString(),
-            dlm1: new Date().toLocaleString(),
-            lmdt1: new Date().toLocaleString(),
-            lmdt: new Date().toLocaleString(),
-            active: 1,
-            active1: 1,
-        }
-        const result = await db.collection("M_tax_locationwise").insertOne(tax_details);
         res.status(200).json({
             status: true,
-            message: result
-        })
+            message: "Tax setup successfully.",
+        });
 
     } catch (error) {
         console.error('Error on itemwise tax handler:', error);
@@ -200,8 +194,7 @@ export const taxLocationWise = async (req, res) => {
             message: 'Internal Server Error',
         });
     }
-}
-
+};
 
 // ===================================================tax bill table entry=============================================
 export const taxBillTable = async (req, res) => {
@@ -258,3 +251,24 @@ export const taxBillTable = async (req, res) => {
         });
     }
 }
+
+// ================================================tax list=======================================================
+export const taxList = async (req, res) => {
+    try {
+        const collection = db.collection("M_tax");
+        const taxes = await collection.find(
+            {},
+            { projection: { tax_id: 1, tax_name: 1, rate: 1, is_active: 1, _id: 0 } }
+        ).toArray();
+
+        res.status(200).json({
+            status: 200,
+            success: true,
+            message: "Tax details fetched successfully",
+            data: taxes
+        });
+    } catch (error) {
+        console.error("❌ Error fetching tax details:", error);
+        res.status(500).json({ status: 500, success: false, message: "Internal Server Error" });
+    }
+};

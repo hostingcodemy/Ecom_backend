@@ -1,5 +1,5 @@
 import express from 'express'
-import { adminRegister, addCategory, addItem, logout, addCompany, royalty, cardRedemption, allCustomers, allUsers, findCustomerAgainstUser,CustomerOrders,addSubCategory } from '../controllers/admin.controller.js';
+import { adminRegister, addCategory, addItem, logout, addCompany, royalty, cardRedemption, allCustomers, allUsers, findCustomerAgainstUser, CustomerOrders, addSubCategory, addBanding } from '../controllers/admin.controller.js';
 import { authenticator } from '../auth/auth.js';
 import { upload } from '../middlewares/multer.middleware.js';
 
@@ -15,6 +15,7 @@ adminRouter.post("/add-company", upload.fields([
   { name: 'picture', maxCount: 1 }   // company picture
 ]), addCompany);
 adminRouter.post("/add-royalty", royalty);
+adminRouter.post("/add-banding", addBanding);
 adminRouter.post("/card_redeem", cardRedemption);
 adminRouter.get("/all-customers", allCustomers);
 adminRouter.get("/customer_orders/:id", CustomerOrders);
