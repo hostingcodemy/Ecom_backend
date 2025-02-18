@@ -13,7 +13,7 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 const PORT = process.env.PORT || 3000;
-const allowedOrigins = ["https://ecom-frontend-three-kappa.vercel.app"];
+const allowedOrigins = ["https://ecom-frontend-three-kappa.vercel.app", "https://ecom-admin-seven-gamma.vercel.app"];
 
 app.use(cors({
    origin: (origin, callback) => {
